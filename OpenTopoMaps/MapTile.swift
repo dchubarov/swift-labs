@@ -46,6 +46,17 @@ func tileFromArbitraryCoordinates(location: CLLocationCoordinate2D, zoom: Int) -
   tileFromArbitraryCoordinates(latitude: location.latitude, longitude: location.longitude, zoom: zoom)
 }
 
+func coordinatesToTilePixel(coordinates: CLLocationCoordinate2D, zoom: Int) -> CGPoint {
+  let n = pow(2.0, Double(zoom))
+  let latRad = coordinates.latitude * .pi / 180.0
+  let xTile = n * (coordinates.longitude + 180.0) / 360.0
+  let yTile = n * (1 - (log(tan(latRad) + 1 / cos(latRad)) / .pi)) / 2
+
+  let xPixel = Int(Double(MapTile.tileSize) * (xTile - floor(xTile)))
+  let yPixel = Int(Double(MapTile.tileSize) * (yTile - floor(yTile)))
+  return CGPoint(x: xPixel, y: yPixel)
+}
+
 /// Calculates ground resolution (meters per pixel) at given latitude and zoom level.
 /// - Parameters:
 ///   - latitude: Latitude.

@@ -31,9 +31,31 @@ struct SingleTileView: View {
       AsyncImage(url: URL(string: url)) { phase in
         switch phase {
         case .success(let image):
+          let half = MapTile.tileSize / 2
           image
             .resizable()
             .renderingMode(.original)
+            .overlay {
+              Rectangle().stroke(.black)
+              Path { path in
+                path.move(to: CGPoint(x: half, y: 0))
+                path.addLine(to: CGPoint(x: half, y: MapTile.tileSize))
+                path.move(to: CGPoint(x: 0, y: half))
+                path.addLine(to: CGPoint(x: MapTile.tileSize, y: half))
+              }
+              .stroke(.black, lineWidth: 1)
+
+              let positionOffset = coordinatesToTilePixel(
+                coordinates: self.location,
+                zoom: self.zoom)
+
+              Circle()
+                .stroke(.black)
+                .offset(CGSize(
+                  width: CGFloat(-half) + positionOffset.x,
+                  height: CGFloat(-half) + positionOffset.y))
+                .frame(width: 20, height: 20)
+            }
 
         case .failure(let error):
           Image(systemName: "exclamationmark.triangle")
