@@ -13,6 +13,7 @@ import SwiftUI
 // Estimated download volume per "base" zoom level, down to maximum
 // zoom level (15). Approximate tile image size is 40K, 256x256px, PNG format.
 // Each tile "contains" exactly four sub-tiles at subsequent zoom level.
+// Multiple by number of layers in MapSource.
 //
 // Zoom   Span    Images    Download
 // ------------------------------------
@@ -24,18 +25,12 @@ import SwiftUI
 // TODOS
 // - Check if tile provider(s) rate limited.
 
-let ZOOM_RANGE = 0...16  // upper bound is actually 15
-
-let mirrors: [String] = [
-  "https://a.tile.opentopomap.org",
-  "https://b.tile.opentopomap.org",
-  "https://c.tile.opentopomap.org",
-]
-
 struct SingleTileView: View {
   @Environment(\.colorScheme) var colorScheme
-  @State private var zoom: Int = 11
+
+  @State private var selectedMapSource: MapSource = .openTopoMap
   @State private var placemark: String?
+  @State private var zoom: Int = 11
 
   var location: CLLocationCoordinate2D
 
@@ -45,11 +40,19 @@ struct SingleTileView: View {
         location: location,
         zoom: zoom)
 
+      Picker("Map Source", selection: $selectedMapSource) {
+        Text(MapSource.openStreetMap.id).tag(MapSource.openStreetMap)
+        Text(MapSource.openTopoMap.id).tag(MapSource.openTopoMap)
+        Text(MapSource.openSeaMap.id).tag(MapSource.openSeaMap)
+      }
+
+      Spacer()
+
       Text("\(Int(tile.metersPerPixel * Double(MapTile.tileSize)))m")
         .font(.caption)
         .foregroundStyle(.secondary)
 
-      let url = "\(mirrors[0])/\(tile.path).png"
+      let url = "\(selectedMapSource.layers[0].mirrors[0].baseUrl)/\(tile.path)"
       AsyncImage(url: URL(string: url)) { phase in
         switch phase {
         case .success(let image):
@@ -99,7 +102,7 @@ struct SingleTileView: View {
               .imageScale(.large)
               .foregroundStyle(.tint)
           }
-          .disabled(zoom <= ZOOM_RANGE.lowerBound)
+          .disabled(zoom <= selectedMapSource.zoomRange.lowerBound)
 
           Text("×\(self.zoom)")
 
@@ -108,7 +111,7 @@ struct SingleTileView: View {
               .imageScale(.large)
               .foregroundStyle(.tint)
           }
-          .disabled(zoom >= ZOOM_RANGE.upperBound)
+          .disabled(zoom >= selectedMapSource.zoomRange.upperBound)
         }
         .padding([.top, .bottom], 8)
       }
@@ -124,10 +127,15 @@ struct SingleTileView: View {
       )
 
       Text("\(tile.metersPerPixel) m/px")
+      Text("\(selectedMapSource.layers.count) layer(s)")
+
+      Spacer()
 
       Text(placemark ?? "")
         .foregroundStyle(.secondary)
         .padding(.top, 8)
+        .lineLimit(nil)
+
     }
     .padding()
     .onAppear {
