@@ -18,12 +18,11 @@ import SwiftUI
 // ------------------------------------
 // x9     58km     5,461      213M
 // x10    29km     1,365       53M
-// x11    15km       341       13M
+// x11    15km       341       13M  *
 // x12     7km        85        4M
 //
 // TODOS
 // - Check if tile provider(s) rate limited.
-// - Image .colorInvert() can be used in dark mode.
 
 let ZOOM_RANGE = 0...16  // upper bound is actually 15
 
@@ -34,8 +33,10 @@ let mirrors: [String] = [
 ]
 
 struct SingleTileView: View {
-  var location: CLLocationCoordinate2D
+  @Environment(\.colorScheme) var colorScheme
   @State private var zoom: Int = 10
+
+  var location: CLLocationCoordinate2D
 
   var body: some View {
     VStack {
@@ -52,19 +53,18 @@ struct SingleTileView: View {
         switch phase {
         case .success(let image):
           let positionOffset = tile.offsetLocationOf(location: location)
-
           image
             .resizable()
-            .renderingMode(.original)
+            .blendMode(colorScheme == .dark ? .difference : .normal)
             .overlay {
-              Rectangle().stroke(.black)
+              Rectangle().stroke()
               Path { path in
                 path.move(to: CGPoint(x: positionOffset.x, y: 0))
                 path.addLine(to: CGPoint(x: positionOffset.x, y: CGFloat(MapTile.tileSize)))
                 path.move(to: CGPoint(x: 0, y: positionOffset.y))
                 path.addLine(to: CGPoint(x: CGFloat(MapTile.tileSize), y: positionOffset.y))
               }
-              .stroke(.black, lineWidth: 1)
+              .stroke(colorScheme == .dark ? .white : .black, lineWidth: 1)
               .opacity(0.7)
             }
 
@@ -128,18 +128,18 @@ struct SingleTileView: View {
   }
 }
 
-#Preview("Tbilisi, Georgia") {
+#Preview("Sioni, Georgia") {
   SingleTileView(
     location: CLLocationCoordinate2D(
-      latitude: 41.733_920,
-      longitude: 44.739_086))
+      latitude: 41.990_923,
+      longitude: 45.017_195))
 }
 
 #Preview("Toronto, Canada") {
   SingleTileView(
     location: CLLocationCoordinate2D(
-      latitude: 43.613_243,
-      longitude: -79.343_428))
+      latitude: 43.632_237,
+      longitude: -79.396_036))
 }
 
 #Preview("Wellington, New Zeland") {
