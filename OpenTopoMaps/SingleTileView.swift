@@ -8,6 +8,23 @@
 import CoreLocation
 import SwiftUI
 
+// NOTES
+//
+// Estimated download volume per "base" zoom level, down to maximum
+// zoom level (15). Approximate tile image size is 40K, 256x256px, PNG format.
+// Each tile "contains" exactly four sub-tiles at subsequent zoom level.
+//
+// Zoom   Span    Images    Download
+// ------------------------------------
+// x9     58km     5,461      213M
+// x10    29km     1,365       53M
+// x11    15km       341       13M
+// x12     7km        85        4M
+//
+// TODOS
+// - Check if tile provider(s) rate limited.
+// - Image .colorInvert() can be used in dark mode.
+
 let ZOOM_RANGE = 0...16  // upper bound is actually 15
 
 let mirrors: [String] = [
@@ -18,43 +35,37 @@ let mirrors: [String] = [
 
 struct SingleTileView: View {
   var location: CLLocationCoordinate2D
-
   @State private var zoom: Int = 10
 
   var body: some View {
     VStack {
-      let tile = tileFromArbitraryCoordinates(
-        location: self.location,
-        zoom: self.zoom)
+      let tile = MapTile.fromLocationCoordinate(
+        location: location,
+        zoom: zoom)
+
+      Text("\(Int(tile.metersPerPixel * Double(MapTile.tileSize)))m")
+        .font(.caption)
+        .foregroundStyle(.secondary)
 
       let url = "\(mirrors[0])/\(tile.path).png"
       AsyncImage(url: URL(string: url)) { phase in
         switch phase {
         case .success(let image):
-          let half = MapTile.tileSize / 2
+          let positionOffset = tile.offsetLocationOf(location: location)
+
           image
             .resizable()
             .renderingMode(.original)
             .overlay {
               Rectangle().stroke(.black)
               Path { path in
-                path.move(to: CGPoint(x: half, y: 0))
-                path.addLine(to: CGPoint(x: half, y: MapTile.tileSize))
-                path.move(to: CGPoint(x: 0, y: half))
-                path.addLine(to: CGPoint(x: MapTile.tileSize, y: half))
+                path.move(to: CGPoint(x: positionOffset.x, y: 0))
+                path.addLine(to: CGPoint(x: positionOffset.x, y: CGFloat(MapTile.tileSize)))
+                path.move(to: CGPoint(x: 0, y: positionOffset.y))
+                path.addLine(to: CGPoint(x: CGFloat(MapTile.tileSize), y: positionOffset.y))
               }
               .stroke(.black, lineWidth: 1)
-
-              let positionOffset = coordinatesToTilePixel(
-                coordinates: self.location,
-                zoom: self.zoom)
-
-              Circle()
-                .stroke(.black)
-                .offset(CGSize(
-                  width: CGFloat(-half) + positionOffset.x,
-                  height: CGFloat(-half) + positionOffset.y))
-                .frame(width: 20, height: 20)
+              .opacity(0.7)
             }
 
         case .failure(let error):
@@ -76,34 +87,42 @@ struct SingleTileView: View {
       .frame(width: 256, height: 256)
       .background(Color.gray)
 
-      HStack {
-        Button(action: { zoom -= 1 }) {
-          Image(systemName: "minus.circle")
-            .imageScale(.large)
-            .foregroundStyle(.tint)
-        }
-        .disabled(zoom == ZOOM_RANGE.lowerBound)
+      ZStack {
+        Capsule()
+          .fill(.tertiary)
+          .frame(width: 108, height: 34)
 
-        Text("×\(self.zoom)")
+        HStack {
+          Button(action: { zoom -= 1 }) {
+            Image(systemName: "minus.circle")
+              .imageScale(.large)
+              .foregroundStyle(.tint)
+          }
+          .disabled(zoom <= ZOOM_RANGE.lowerBound)
 
-        Button(action: { zoom += 1 }) {
-          Image(systemName: "plus.circle")
-            .imageScale(.large)
-            .foregroundStyle(.tint)
+          Text("×\(self.zoom)")
+
+          Button(action: { zoom += 1 }) {
+            Image(systemName: "plus.circle")
+              .imageScale(.large)
+              .foregroundStyle(.tint)
+          }
+          .disabled(zoom >= ZOOM_RANGE.upperBound)
         }
-        .disabled(zoom == ZOOM_RANGE.upperBound)
+        .padding([.top, .bottom], 8)
       }
-      .padding([.top, .bottom], 8)
 
       Text(tile.path)
 
-      let origin = tile.originCoordinates
+      let origin = tile.originLocation
       Text(
-        "\(abs(origin.latitude))°\(origin.latitude > 0 ? "N" : "S") : \(abs(origin.longitude))°\(origin.longitude > 0 ? "E" : "W")"
+        """
+        \(abs(origin.latitude))°\(origin.latitude > 0 ? "N" : "S") : \
+        \(abs(origin.longitude))°\(origin.longitude > 0 ? "E" : "W")
+        """
       )
 
-      let metersPerPixel = groundResolution(latitude: origin.latitude, zoom: self.zoom)
-      Text("\(metersPerPixel) m/px")
+      Text("\(tile.metersPerPixel) m/px")
     }
     .padding()
   }
@@ -123,9 +142,9 @@ struct SingleTileView: View {
       longitude: -79.343_428))
 }
 
-#Preview("Signey, Australia") {
+#Preview("Wellington, New Zeland") {
   SingleTileView(
     location: CLLocationCoordinate2D(
-      latitude: -33.865_143,
-      longitude: 151.209_900))
+      latitude: -41.283_589,
+      longitude: 174.826_131))
 }
