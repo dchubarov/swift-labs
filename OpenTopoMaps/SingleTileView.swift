@@ -34,7 +34,8 @@ let mirrors: [String] = [
 
 struct SingleTileView: View {
   @Environment(\.colorScheme) var colorScheme
-  @State private var zoom: Int = 10
+  @State private var zoom: Int = 11
+  @State private var placemark: String?
 
   var location: CLLocationCoordinate2D
 
@@ -123,8 +124,32 @@ struct SingleTileView: View {
       )
 
       Text("\(tile.metersPerPixel) m/px")
+
+      Text(placemark ?? "")
+        .foregroundStyle(.secondary)
+        .padding(.top, 8)
     }
     .padding()
+    .onAppear {
+      let geocoder = CLGeocoder()
+      geocoder.reverseGeocodeLocation(
+        CLLocation(
+          latitude: location.latitude,
+          longitude: location.longitude)
+      ) { (placemarks, error) in
+        if error != nil {
+          placemark = "Error retrieving address"
+        }
+
+        if let placemarks = placemarks, let firstPlacemark = placemarks.first {
+          placemark = """
+            \(firstPlacemark.name ?? "") \
+            \(firstPlacemark.locality ?? "") \
+            \(firstPlacemark.country ?? "")
+            """
+        }
+      }
+    }
   }
 }
 
