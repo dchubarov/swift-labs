@@ -22,6 +22,7 @@ extension Quakes {
         }
       }
     }
+
     ToolbarItem(placement: .navigationBarTrailing) {
       EditButton(editMode: $editMode) {
         selection.removeAll()
@@ -29,6 +30,7 @@ extension Quakes {
         selectMode = .inactive
       }
     }
+
     ToolbarItemGroup(placement: .bottomBar) {
       RefreshButton {
         Task {

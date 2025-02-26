@@ -7,15 +7,16 @@
 
 import Foundation
 
-struct Quake: Identifiable {
+struct Quake {
   let magnitude: Double
   let place: String
   let time: Date
   let code: String
   let detail: URL
+  var location: QuakeLocation?
 }
 
-extension Quake/*: Identifiable*/ {
+extension Quake: Identifiable {
   var id: String { code }
 }
 
